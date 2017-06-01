@@ -18,4 +18,7 @@ trait TestDatasets extends SuiteBase {
   dataset4 ++= sc.parallelize((0 to 4).map ( x => create2DPoint (x, 0.0).withPointId (100+x) ))
   dataset4 ++= sc.parallelize((0 to 4).map ( x => create2DPoint (x, 2.0).withPointId (200+x) ))
 
+  val datasetQian = createRDDOfPointsWithND (sc, Array(0.1, 0.0, 0.0, 0.0), Array(0.5, 0.0, 0.0, 0.0),
+    Array(0.0, 0.5, 0.0, 0.0), Array(0.0, 0.0, 0.0, 5.0), Array(0.0, 0.0, 0.2, 0.0), Array(0.0, 0.1, 0.0, 0.0), Array(0.0, 0.0, 0.0, 0.5))
+
 }

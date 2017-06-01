@@ -33,8 +33,24 @@ class SuiteBase extends FunSuite with Matchers with BeforeAndAfterEach with Logg
     sc.parallelize(pointObjects)
   }
 
+  def createRDDOfPointsWithND (sc: SparkContext,
+                         points: Array[Double]*) = {
+
+    val pointIds = 1 to points.size
+
+    val pointObjects = points
+      .zip (pointIds)
+      .map ( x => createNDPoint(x._1).withPointId(x._2) )
+
+    sc.parallelize(pointObjects)
+  }
+
   def create2DPoint (x: Double, y: Double, idx: PointId = 0): Point = {
     new Point ( new PointCoordinates (Array (x, y)), idx, 1, Math.sqrt (x*x+y*y))
+  }
+
+  def createNDPoint (x: Array[Double], idx: PointId = 0): Point = {
+    new Point ( new PointCoordinates (x), idx, 1, Math.sqrt (x.map(a => a * a).sum))
   }
 
   def create2DPointWithSortKey (x: Double, y: Double, idx: PointId = 0): (PointSortKey, Point) = {

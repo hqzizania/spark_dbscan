@@ -2,13 +2,16 @@ package org.alitouka.spark.dbscan
 
 import org.alitouka.spark.dbscan.spatial._
 import org.apache.commons.math3.ml.distance.DistanceMeasure
-import scala.collection.mutable.{ListBuffer, HashSet}
-import org.apache.spark.rdd.RDD
-import org.alitouka.spark.dbscan.spatial.rdd.{PointsInAdjacentBoxesRDD, PointsPartitionedByBoxesRDD, PartitioningSettings}
+
+import scala.collection.mutable.{HashSet, ListBuffer}
+import org.apache.spark.rdd.{PairRDDFunctions, RDD}
+import org.alitouka.spark.dbscan.spatial.rdd.{PartitioningSettings, PointsInAdjacentBoxesRDD, PointsPartitionedByBoxesRDD}
+
 import scala.Some
 import org.alitouka.spark.dbscan.util.commandLine.CommonArgs
 import org.alitouka.spark.dbscan.util.debug.DebugHelper
 import org.apache.spark.Logging
+
 import scala.collection.immutable.HashMap
 
 /** Implementation of the DBSCAN algorithm which is capable of parallel processing of the input data.
@@ -33,10 +36,11 @@ class DistributedDbscan (
 
   /** Runs the clustering algorithm
    *
-   * @param data A data set to be clustered. See [[org.alitouka.spark.dbscan.RawDataSet]] for details
+   * @param dataSource A data set to be clustered. See [[org.alitouka.spark.dbscan.RawDataSet]] for details
    * @return A [[org.alitouka.spark.dbscan.DbscanModel]] object which represents clustering results
    */
-  override protected def run(data: RawDataSet): DbscanModel = {
+  override protected def run(dataSource: RawDataSet): DbscanModel = {
+    val (dataFull, data) = LocalAtomBoxing(dataSource, settings)
     val distanceAnalyzer = new DistanceAnalyzer (settings)
     val partitionedData = PointsPartitionedByBoxesRDD (data, partitioningSettings, settings)
 
@@ -77,7 +81,15 @@ class DistributedDbscan (
     val completelyClusteredData = mergeClustersFromDifferentPartitions(partiallyClusteredData,
       partitionedData.boxes)
 
-    new DbscanModel (completelyClusteredData, settings)
+
+    val completelyClusteredDataFull = dataFull.subtract(data).union(completelyClusteredData)
+      .map(point => (point.atomBoxId, point))
+      .groupBy(_._1)
+      .flatMap{case(k, v) =>
+        val clusterId = v.filter(_._2.clusterId != -2).head._2.clusterId
+          v.map(_._2.withClusterId(clusterId))
+      }
+    new DbscanModel (completelyClusteredDataFull, settings)
   }
 
 
